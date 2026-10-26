@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopCalc - Calculadora Inteligente de Compras</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Transiciones suaves */
+        .transition-all-200 {
+            transition: all 0.2s ease-in-out;
+        }
+        /* Custom scrollbar para la tabla en móviles */
+        .overflow-x-auto::-webkit-scrollbar {
+            height: 6px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col justify-between pb-10">
+
+    <!-- Header Principal -->
+    <header class="bg-gradient-to-r from-rose-600 via-red-500 to-orange-500 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/20 p-2.5 rounded-xl backdrop-blur-md">
+                    <i class="fa-solid font-bold fa-cart-shopping text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-tight">ShopCalc</h1>
+                    <p class="text-xs text-rose-100 font-medium">Calculadora Inteligente de Compras</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="resetData()" class="bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm px-3 py-2 rounded-lg backdrop-blur-sm transition-all flex items-center gap-1.5 border border-white/20">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Reiniciar</span>
+                </button>
+                <button onclick="exportSummary()" class="bg-white text-rose-600 hover:bg-rose-50 font-semibold text-xs md:text-sm px-3.5 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-arrow-down"></i>
+                    <span>Exportar</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 w-full space-y-6 flex-grow">
+
+        <!-- Notificaciones Dinámicas -->
+        <div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transition-all duration-300 transform translate-y-10 opacity-0">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+            <span id="toast-message" class="text-sm font-medium">Acción realizada exitosamente.</span>
+        </div>
+
+        <!-- SECCIÓN 1: Estado del Presupuesto (Dashboard visual idéntico al boceto) -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 transition-all hover:shadow-md">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
+                    <h2 class="text-lg font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                        <i class="fa-solid fa-wallet text-rose-500"></i> Estado del Presupuesto
+                    </h2>
+                </div>
+                <!-- Input editable para el presupuesto límite -->
+                <div class="flex items-center bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 w-full md:w-auto">
+                    <label for="budget-input" class="text-xs font-semibold text-slate-500 uppercase mr-2">Presupuesto:</label>
+                    <span class="text-slate-500 font-bold">$</span>
+                    <input type="number" id="budget-input" value="160000" min="0" step="1000" onchange="updateCalculations()" class="bg-transparent font-bold text-slate-800 w-28 focus:outline-none text-right px-1">
+                </div>
+            </div>
+
+            <!-- Métrica Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs text-slate-500 font-medium block mb-1">Presupuesto Límite</span>
+                    <span id="disp-budget" class="text-lg md:text-xl font-extrabold text-slate-800">$160,000</span>
+                </div>
+                <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-100">
+                    <span class="text-xs text-rose-600 font-medium block mb-1">Total Gastado</span>
+                    <span id="disp-spent" class="text-lg md:text-xl font-extrabold text-rose-600">$0</span>
+                </div>
+                <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                    <span class="text-xs text-emerald-700 font-medium block mb-1">Restante Disponible</span>
+                    <span id="disp-remaining" class="text-lg md:text-xl font-extrabold text-emerald-600">$160,000</span>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="text-xs text-slate-500 font-medium block mb-1">Porcentaje Usado</span>
+                    <span id="disp-percentage" class="text-lg md:text-xl font-extrabold text-slate-800">0%</span>
+                </div>
+            </div>
+
+            <!-- Barra de Progreso del Presupuesto -->
+            <div class="space-y-1.5">
+                <div class="flex justify-between text-xs font-medium text-slate-500">
+                    <span>Uso del limite de gasto</span>
+                    <span id="progress-text">0% gastado</span>
+                </div>
+                <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 w-0"></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- SECCIÓN 2: Formulario de Registro / Edición (1 Columna en desktop) -->
+            <section class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col justify-between h-fit">
+                <div>
+                    <h2 class="text-md font-bold text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-plus text-rose-500"></i>
+                        <span id="form-title">Agregar Producto</span>
+                    </h2>
+
+                    <form id="product-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                        <input type="hidden" id="edit-id" value="">
+
+                        <!-- Nombre del producto -->
+                        <div>
+                            <label for="prod-name" class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Producto *</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                                    <i class="fa-solid fa-tag text-xs"></i>
+                                </span>
+                                <input type="text" id="prod-name" required placeholder="Ej: Leche entera 1L" class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
+                            </div>
+                        </div>
+
+                        <!-- Precio Unitario y Cantidad -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="prod-price" class="block text-xs font-bold text-slate-600 uppercase mb-1">Precio Unit ($) *</label>
+                                <input type="number" id="prod-price" required min="0" step="50" placeholder="4200" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
+                            </div>
+                            <div>
+                                <label for="prod-qty" class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad *</label>
+                                <input type="number" id="prod-qty" required min="1" value="1" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
+                            </div>
+                        </div>
+
+                        <!-- IVA Selector -->
+                        <div>
+                            <label for="prod-vat" class="block text-xs font-bold text-slate-600 uppercase mb-1">Impuesto / IVA Aplicable</label>
+                            <select id="prod-vat" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
+                                <option value="19" selected>IVA 19% (General)</option>
+                                <option value="5">IVA 5% (Reducido)</option>
+                                <option value="0">Exento (0%)</option>
+                            </select>
+                        </div>
+
+                        <!-- Botón Submit -->
+                        <div class="pt-2 flex gap-2">
+                            <button type="submit" id="btn-submit" class="flex-1 bg-gradient-to-r from-rose-600 to-red-500 hover:from-rose-700 hover:to-red-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Agregar Producto</span>
+                            </button>
+                            <button type="button" id="btn-cancel-edit" onclick="resetForm()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 px-3 rounded-xl transition-all text-sm">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Info Algoritmo de Duplicados -->
+                <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 flex items-start gap-2">
+                    <i class="fa-solid fa-lightbulb text-amber-500 mt-0.5"></i>
+                    <p><strong>Detección inteligente:</strong> Si ingresas un producto existente, sumaremos la cantidad automáticamente sin duplicar registros.</p>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 3: Lista de Productos y Totales (2 Columnas en desktop) -->
+            <section class="lg:col-span-2 space-y-6">
+                
+                <!-- Card de la Lista de Productos -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+                    
+                    <!-- Filtros y Ordenamiento (Implementa algoritmos descritos por Thomas Mojica) -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+                        <h2 class="text-md font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-rose-500"></i> Lista de Productos (<span id="items-count">0</span>)
+                        </h2>
+                        
+                        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto text-xs">
+                            <!-- Filtro de estado (Pagados/En Carrito vs Pendientes) -->
+                            <select id="filter-status" onchange="renderProducts()" class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none">
+                                <option value="all">Todos los estados</option>
+                                <option value="in_cart">En Carrito (Verificados)</option>
+                                <option value="pending">Pendientes de pago</option>
+                            </select>
+
+                            <!-- Ordenamiento (Mayor/Menor valor) -->
+                            <select id="sort-by" onchange="renderProducts()" class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none">
+                                <option value="date-desc">Más recientes primero</option>
+                                <option value="price-desc">Ordenar: Mayor a Menor valor</option>
+                                <option value="price-asc">Ordenar: Menor a Mayor valor</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Productos -->
+                    <div class="overflow-x-auto min-h-[200px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50/50">
+                                    <th class="py-3 px-2 text-center w-10">Estado</th>
+                                    <th class="py-3 px-3">Producto</th>
+                                    <th class="py-3 px-2 text-center">Cant.</th>
+                                    <th class="py-3 px-3 text-right">Precio U.</th>
+                                    <th class="py-3 px-3 text-right">Subtotal</th>
+                                    <th class="py-3 px-3 text-center w-20">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body" class="divide-y divide-slate-100 text-sm">
+                                <!-- Filas inyectadas por JS -->
+                            </tbody>
+                        </table>
+
+                        <!-- Estado Vacío -->
+                        <div id="empty-state" class="py-12 text-center space-y-3">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 text-2xl">
+                                <i class="fa-solid fa-basket-shopping"></i>
+                            </div>
+                            <p class="text-slate-500 font-medium text-sm">No hay productos en tu lista de compras.</p>
+                            <p class="text-xs text-slate-400">Agrega un ítem desde el formulario superior para comenzar.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: Resumen de Totales y Código de Descuento (Boceto inferior) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 space-y-4">
+                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Resumen de Cuenta</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        
+                        <!-- Input Código de Descuento -->
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                            <label for="discount-code" class="block text-xs font-bold text-slate-600 uppercase">Código o Valor de Descuento</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="discount-code" placeholder="Ej: SHOP10 o -$2000" class="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm uppercase focus:ring-2 focus:ring-rose-500 outline-none">
+                                <button onclick="applyDiscount()" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all">
+                                    Aplicar
+                                </button>
+                            </div>
+                            <div id="discount-status" class="text-xs text-slate-500 flex justify-between items-center hidden">
+                                <span class="text-emerald-600 font-medium" id="discount-applied-text">Descuento aplicado</span>
+                                <button onclick="removeDiscount()" class="text-rose-500 hover:underline">Quitar</button>
+                            </div>
+                        </div>
+
+                        <!-- Desglose de Totales Exactos -->
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between text-slate-600">
+                                <span>Subtotal Productos:</span>
+                                <span id="summary-subtotal" class="font-semibold">$0</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>IVA / Impuestos Totales:</span>
+                                <span id="summary-vat" class="font-semibold">$0</span>
+                            </div>
+                            <div class="flex justify-between text-emerald-600 font-medium">
+                                <span>Descuento Aplicado:</span>
+                                <span id="summary-discount">-$0</span>
+                            </div>
+                            <div class="border-t border-slate-200 pt-2 flex justify-between items-center">
+                                <span class="text-base font-bold text-slate-800">TOTAL A PAGAR:</span>
+                                <span id="summary-total" class="text-2xl font-black text-rose-600">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción Global -->
+                    <div class="pt-4 border-t border-slate-100 flex flex-wrap gap-3 justify-end">
+                        <button onclick="clearCart()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-semibold px-4 py-2.5 rounded-xl transition-all">
+                            <i class="fa-solid fa-trash-can mr-1"></i> Vaciar Lista
+                        </button>
+                        <button onclick="checkout()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-bold px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Completar Compra</span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Footer de Créditos de Requerimientos -->
+    <footer class="max-w-6xl mx-auto px-4 mt-8 text-center text-xs text-slate-400">
+        <p>ShopCalc - Propuesta de solución basada en los requerimientos de Johan Martínez y Thomas Mojica (2026).</p>
+        <p class="mt-1">Desarrollo Responsive en metodología Agile/Scrum.</p>
+    </footer>
+
+    <!-- LOGICA JAVASCRIPT AUTÓNOMA -->
+    <script>
+        // ESTADO DE LA APLICACIÓN
+        let products = [
+            { id: 1, name: 'Leche colanta 1L', price: 4200, qty: 1, vatRate: 19, inCart: true, createdAt: 1 },
+            { id: 2, name: 'Arroz 1Kg', price: 4500, qty: 1, vatRate: 5, inCart: true, createdAt: 2 },
+            { id: 3, name: 'Aceite 1L', price: 18900, qty: 1, vatRate: 19, inCart: true, createdAt: 3 },
+            { id: 4, name: 'Pan tajado', price: 4400, qty: 3, vatRate: 0, inCart: false, createdAt: 4 }
+        ];
+
+        let budgetLimit = 160000;
+        let appliedDiscount = 2000; // Valor por defecto acorde al boceto manual ($12.000 o -$2000)
+
+        // INICIALIZACIÓN
+        window.onload = function() {
+            renderProducts();
+            updateCalculations();
+        };
+
+        // NOTIFICACIONES TOAST
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+            if (type === 'danger') {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
+            } else if (type === 'warning') {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            }
+
+            toast.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        // CONTROL DEL FORMULARIO (AGREGAR / EDITAR)
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const editId = document.getElementById('edit-id').value;
+            const nameInput = document.getElementById('prod-name').value.trim();
+            const priceInput = parseFloat(document.getElementById('prod-price').value);
+            const qtyInput = parseInt(document.getElementById('prod-qty').value);
+            const vatInput = parseFloat(document.getElementById('prod-vat').value);
+
+            if (!nameInput || isNaN(priceInput) || isNaN(qtyInput)) {
+                showToast('Por favor completa todos los campos válidos', 'danger');
+                return;
+            }
+
+            if (editId) {
+                // Modo Edición
+                const prodIndex = products.findIndex(p => p.id == editId);
+                if (prodIndex !== -1) {
+                    products[prodIndex].name = nameInput;
+                    products[prodIndex].price = priceInput;
+                    products[prodIndex].qty = qtyInput;
+                    products[prodIndex].vatRate = vatInput;
+                    showToast(`Producto "${nameInput}" actualizado`);
+                }
+            } else {
+                // Algoritmo para evitar productos duplicados (definido en requerimientos del PDF)
+                const existingProd = products.find(p => p.name.toLowerCase() === nameInput.toLowerCase());
+
+                if (existingProd) {
+                    // Si el producto ya existe, actualiza la cantidad en lugar de duplicar
+                    existingProd.qty += qtyInput;
+                    existingProd.price = priceInput; // Actualiza con el precio más reciente
+                    showToast(`Se sumó la cantidad al producto existente "${existingProd.name}"`, 'warning');
+                } else {
+                    // Nuevo producto
+                    const newProduct = {
+                        id: Date.now(),
+                        name: nameInput,
+                        price: priceInput,
+                        qty: qtyInput,
+                        vatRate: vatInput,
+                        inCart: false,
+                        createdAt: Date.now()
+                    };
+                    products.push(newProduct);
+                    showToast(`"${nameInput}" agregado a la lista`);
+                }
+            }
+
+            resetForm();
+            renderProducts();
+            updateCalculations();
+        }
+
+        function editProduct(id) {
+            const prod = products.find(p => p.id === id);
+            if (!prod) return;
+
+            document.getElementById('edit-id').value = prod.id;
+            document.getElementById('prod-name').value = prod.name;
+            document.getElementById('prod-price').value = prod.price;
+            document.getElementById('prod-qty').value = prod.qty;
+            document.getElementById('prod-vat').value = prod.vatRate;
+
+            document.getElementById('form-title').textContent = "Editar Producto";
+            document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>Guardar Cambios</span>`;
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('product-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('form-title').textContent = "Agregar Producto";
+            document.getElementById('btn-submit').innerHTML = `<i class="fa-solid fa-plus"></i> <span>Agregar Producto</span>`;
+            document.getElementById('btn-cancel-edit').classList.add('hidden');
+        }
+
+        function deleteProduct(id) {
+            const prod = products.find(p => p.id === id);
+            products = products.filter(p => p.id !== id);
+            showToast(`Producto "${prod ? prod.name : ''}" eliminado`);
+            renderProducts();
+            updateCalculations();
+        }
+
+        function toggleCartStatus(id) {
+            const prod = products.find(p => p.id === id);
+            if (prod) {
+                prod.inCart = !prod.inCart;
+                renderProducts();
+                updateCalculations();
+            }
+        }
+
+        // ALGORITMOS DE FILTRADO Y ORDENAMIENTO (Basado en el algoritmo en pseudocódigo del cuaderno)
+        function getFilteredAndSortedProducts() {
+            const filterStatus = document.getElementById('filter-status').value;
+            const sortBy = document.getElementById('sort-by').value;
+
+            let list = [...products];
+
+            // 1. Filtrar
+            if (filterStatus === 'in_cart') {
+                list = list.filter(p => p.inCart);
+            } else if (filterStatus === 'pending') {
+                list = list.filter(p => !p.inCart);
+            }
+
+            // 2. Ordenar
+            if (sortBy === 'price-desc') {
+                list.sort((a, b) => (b.price * b.qty) - (a.price * a.qty));
+            } else if (sortBy === 'price-asc') {
+                list.sort((a, b) => (a.price * a.qty) - (b.price * b.qty));
+            } else {
+                list.sort((a, b) => b.createdAt - a.createdAt);
+            }
+
+            return list;
+        }
+
+        // RENDERIZADO DE LA TABLA DE PRODUCTOS
+        function renderProducts() {
+            const tbody = document.getElementById('products-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const itemsCount = document.getElementById('items-count');
+            
+            const list = getFilteredAndSortedProducts();
+            itemsCount.textContent = products.length;
+
+            if (list.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = list.map(prod => {
+                const subtotal = prod.price * prod.qty;
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors ${prod.inCart ? 'bg-slate-50/40' : ''}">
+                        <td class="py-3 px-2 text-center">
+                            <input type="checkbox" ${prod.inCart ? 'checked' : ''} onchange="toggleCartStatus(${prod.id})" 
+                                class="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer">
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="font-semibold text-slate-800 ${prod.inCart ? 'line-through text-slate-400' : ''}">
+                                ${escapeHtml(prod.name)}
+                            </div>
+                            <div class="text-[11px] text-slate-400">
+                                IVA: ${prod.vatRate}%
+                            </div>
+                        </td>
+                        <td class="py-3 px-2 text-center">
+                            <span class="inline-block bg-slate-100 font-medium text-slate-700 px-2 py-0.5 rounded text-xs">
+                                x${prod.qty}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right font-medium text-slate-600">
+                            $${formatMoney(prod.price)}
+                        </td>
+                        <td class="py-3 px-3 text-right font-bold text-slate-800">
+                            $${formatMoney(subtotal)}
+                        </td>
+                        <td class="py-3 px-3 text-center">
+                            <div class="flex items-center justify-center space-x-2">
+                                <button onclick="editProduct(${prod.id})" class="text-slate-400 hover:text-rose-600 transition-colors p-1" title="Editar">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button onclick="deleteProduct(${prod.id})" class="text-slate-400 hover:text-red-600 transition-colors p-1" title="Eliminar">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // CÁLCULOS MATEMÁTICOS Y PRESUPUESTO EN TIEMPO REAL
+        function updateCalculations() {
+            budgetLimit = parseFloat(document.getElementById('budget-input').value) || 0;
+
+            let grossSubtotal = 0;
+            let totalVat = 0;
+
+            products.forEach(p => {
+                const itemSubtotal = p.price * p.qty;
+                const itemVat = itemSubtotal * (p.vatRate / 100);
+                
+                grossSubtotal += itemSubtotal;
+                totalVat += itemVat;
+            });
+
+            const grandTotal = Math.max(0, (grossSubtotal + totalVat) - appliedDiscount);
+            const remaining = budgetLimit - grandTotal;
+            const usedPercentage = budgetLimit > 0 ? Math.min(100, Math.round((grandTotal / budgetLimit) * 100)) : 0;
+
+            // Actualizar interfaz del Presupuesto
+            document.getElementById('disp-budget').textContent = `$${formatMoney(budgetLimit)}`;
+            document.getElementById('disp-spent').textContent = `$${formatMoney(grandTotal)}`;
+            
+            const dispRemaining = document.getElementById('disp-remaining');
+            dispRemaining.textContent = `$${formatMoney(remaining)}`;
+            if (remaining < 0) {
+                dispRemaining.className = "text-lg md:text-xl font-extrabold text-red-600 animate-pulse";
+            } else {
+                dispRemaining.className = "text-lg md:text-xl font-extrabold text-emerald-600";
+            }
+
+            document.getElementById('disp-percentage').textContent = `${usedPercentage}%`;
+            document.getElementById('progress-text').textContent = `${usedPercentage}% de tu presupuesto usado`;
+
+            // Actualizar Barra de Progreso y Alertas Visulares
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = `${Math.min(100, usedPercentage)}%`;
+
+            if (usedPercentage >= 100) {
+                progressBar.className = "h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full transition-all duration-500";
+            } else if (usedPercentage >= 80) {
+                progressBar.className = "h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500";
+            } else {
+                progressBar.className = "h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500";
+            }
+
+            // Actualizar Desglose de Resumen
+            document.getElementById('summary-subtotal').textContent = `$${formatMoney(grossSubtotal)}`;
+            document.getElementById('summary-vat').textContent = `$${formatMoney(totalVat)}`;
+            document.getElementById('summary-discount').textContent = `-$${formatMoney(appliedDiscount)}`;
+            document.getElementById('summary-total').textContent = `$${formatMoney(grandTotal)}`;
+        }
+
+        // CONTROL DE DESCUENTOS
+        function applyDiscount() {
+            const codeInput = document.getElementById('discount-code').value.trim();
+            if (!codeInput) return;
+
+            if (codeInput.toUpperCase() === 'SHOP10') {
+                // Descuento del 10%
+                let grossSubtotal = products.reduce((acc, p) => acc + (p.price * p.qty), 0);
+                appliedDiscount = Math.round(grossSubtotal * 0.10);
+                showDiscountApplied('10% de descuento (SHOP10)');
+            } else if (!isNaN(parseFloat(codeInput))) {
+                // Descuento valor fijo
+                appliedDiscount = Math.abs(parseFloat(codeInput));
+                showDiscountApplied(`Descuento de $${formatMoney(appliedDiscount)}`);
+            } else {
+                // Descuento genérico por código
+                appliedDiscount = 2000;
+                showDiscountApplied('Código promocional -$2,000');
+            }
+
+            updateCalculations();
+        }
+
+        function showDiscountApplied(text) {
+            const statusBox = document.getElementById('discount-status');
+            const textSpan = document.getElementById('discount-applied-text');
+            textSpan.textContent = text;
+            statusBox.classList.remove('hidden');
+            showToast('Descuento aplicado correctamente');
+        }
+
+        function removeDiscount() {
+            appliedDiscount = 0;
+            document.getElementById('discount-code').value = '';
+            document.getElementById('discount-status').classList.add('hidden');
+            updateCalculations();
+            showToast('Descuento removido');
+        }
+
+        // OPERACIONES GLOBALES
+        function clearCart() {
+            if (products.length === 0) return;
+            if (confirm('¿Estás seguro de vaciar toda la lista de productos?')) {
+                products = [];
+                renderProducts();
+                updateCalculations();
+                showToast('Lista de compras vaciada');
+            }
+        }
+
+        function checkout() {
+            if (products.length === 0) {
+                showToast('Agrega productos antes de completar la compra', 'warning');
+                return;
+            }
+            showToast('¡Compra registrada exitosamente!', 'success');
+        }
+
+        function resetData() {
+            products = [
+                { id: 1, name: 'Leche colanta 1L', price: 4200, qty: 1, vatRate: 19, inCart: true, createdAt: 1 },
+                { id: 2, name: 'Arroz 1Kg', price: 4500, qty: 1, vatRate: 5, inCart: true, createdAt: 2 },
+                { id: 3, name: 'Aceite 1L', price: 18900, qty: 1, vatRate: 19, inCart: true, createdAt: 3 },
+                { id: 4, name: 'Pan tajado', price: 4400, qty: 3, vatRate: 0, inCart: false, createdAt: 4 }
+            ];
+            document.getElementById('budget-input').value = 160000;
+            appliedDiscount = 2000;
+            renderProducts();
+            updateCalculations();
+            showToast('Datos reiniciados al estado de demostración');
+        }
+
+        function exportSummary() {
+            let text = `=== RESUMEN DE COMPRA - SHOPCALC ===\n\n`;
+            products.forEach(p => {
+                text += `- ${p.name} (x${p.qty}): $${formatMoney(p.price * p.qty)} [${p.inCart ? 'EN CARRITO' : 'PENDIENTE'}]\n`;
+            });
+            text += `\nTotal: ${document.getElementById('summary-total').textContent}\n`;
+            text += `Presupuesto Límite: ${document.getElementById('disp-budget').textContent}\n`;
+            
+            // Copiar al portapapeles
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            showToast('Resumen copiado al portapapeles');
+        }
+
+        // UTILIDADES
+        function formatMoney(amount) {
+            return Math.round(amount).toLocaleString('es-CO');
+        }
+
+        function escapeHtml(string) {
+            const div = document.createElement('div');
+            div.innerText = string;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
